@@ -15,9 +15,9 @@ import { MyContext } from "../types";
 import { AUTH_COOKIE_NAME } from "../constants";
 
 @InputType()
-class UsernamePasswordInput {
+class EmailPasswordInput {
   @Field()
-  username: string;
+  email: string;
   @Field()
   password: string;
 }
@@ -53,15 +53,16 @@ export class UserResolver {
 
   @Mutation(() => UserResponse)
   async register(
-    @Arg("options") options: UsernamePasswordInput,
+    @Arg("options") options: EmailPasswordInput,
     @Ctx() { em }: MyContext
   ): Promise<UserResponse> {
-    if (options.username.length <= 2) {
+    // ToDo: email validation
+    if (!options.email.includes("@")) {
       return {
         errors: [
           {
-            field: "username",
-            message: "length must me greater than 2",
+            field: "email",
+            message: "not an email",
           },
         ],
       };
@@ -79,7 +80,7 @@ export class UserResolver {
 
     const hashedPassword = await argon2.hash(options.password);
     const user = em.create(User, {
-      username: options.username,
+      email: options.email,
       password: hashedPassword,
     });
 
@@ -89,7 +90,7 @@ export class UserResolver {
       const UNIQUE_CONSTRAINT_ERROR_CODE = "23505";
       if (error.code === UNIQUE_CONSTRAINT_ERROR_CODE) {
         return {
-          errors: [{ field: "username", message: "username already taken" }],
+          errors: [{ field: "email", message: "email already in use" }],
         };
       }
     }
@@ -98,14 +99,14 @@ export class UserResolver {
 
   @Mutation(() => UserResponse)
   async login(
-    @Arg("options") options: UsernamePasswordInput,
+    @Arg("options") options: EmailPasswordInput,
     @Ctx() { em, req }: MyContext
   ): Promise<UserResponse> {
-    const user = await em.findOne(User, { username: options.username });
+    const user = await em.findOne(User, { email: options.email });
 
     if (!user) {
       return {
-        errors: [{ field: "username", message: "username doesn't exist" }],
+        errors: [{ field: "email", message: "email not registered" }],
       };
     }
 
